@@ -1,0 +1,20 @@
+{
+  "name": "9-east-63rd-interactive",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Interactive React + Three.js property concept for 9 East 63rd Street, NYC",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "latest",
+    "gsap": "^3.12.5",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "three": "^0.168.0",
+    "vite": "latest"
+  },
+  "devDependencies": {}
+}
