@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0b0b" />
+  <title>Spatial Property — Gaussian Walkthrough Prototype</title>
+  <meta name="description" content="A browser-native Gaussian splat property walkthrough prototype using Three.js and Spark." />
+  <style>
+    :root{--bg:#0a0a09;--paper:#efe9df;--muted:#a79f95;--line:rgba(239,233,223,.18);--glass:rgba(12,12,11,.68)}
+    *{box-sizing:border-box}html,body{width:100%;height:100%;margin:0;background:var(--bg);color:var(--paper);overflow:hidden}
+    body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    #scene{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+    .veil{position:fixed;inset:0;pointer-events:none;background:radial-gradient(circle at 50% 38%,transparent 0 32%,rgba(0,0,0,.11) 68%,rgba(0,0,0,.48) 100%);z-index:4}
+    .grain{position:fixed;inset:0;pointer-events:none;z-index:5;opacity:.035;mix-blend-mode:screen;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+    .top{position:fixed;left:0;right:0;top:0;z-index:10;display:flex;justify-content:space-between;align-items:flex-start;padding:20px 22px;pointer-events:none}
+    .brand{font:600 10px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.16em;text-transform:uppercase}.brand small{display:block;margin-top:7px;color:var(--muted);font-weight:500;letter-spacing:.10em}
+    .status{display:flex;gap:8px;align-items:center;background:var(--glass);border:1px solid var(--line);border-radius:999px;padding:9px 12px;backdrop-filter:blur(12px);font-size:9px;letter-spacing:.11em;text-transform:uppercase}.dot{width:6px;height:6px;border-radius:50%;background:#d3c6b4;box-shadow:0 0 18px #d3c6b4}
+    .hero{position:fixed;left:22px;bottom:22px;z-index:10;width:min(540px,calc(100vw - 44px));pointer-events:none}.eyebrow{font:600 9px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.17em;text-transform:uppercase;color:#c5bcae;margin-bottom:12px}.hero h1{font:400 clamp(42px,6vw,82px)/.87 Georgia,serif;letter-spacing:-.055em;margin:0;text-shadow:0 3px 40px rgba(0,0,0,.46)}.hero p{max-width:500px;margin:15px 0 0;color:#c8c0b6;font-size:12px;line-height:1.65;text-shadow:0 2px 20px rgba(0,0,0,.5)}
+    .controls{position:fixed;right:22px;bottom:22px;z-index:12;display:grid;gap:8px;width:min(250px,calc(100vw - 44px))}.panel{background:var(--glass);border:1px solid var(--line);backdrop-filter:blur(16px);padding:13px 14px}.panel b{font:600 9px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.12em;text-transform:uppercase}.panel p{font-size:10px;color:var(--muted);line-height:1.55;margin:7px 0 0}.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}.btn{pointer-events:auto;border:1px solid var(--line);background:rgba(239,233,223,.07);color:var(--paper);min-height:42px;padding:10px 12px;cursor:pointer;text-transform:uppercase;font:600 9px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.11em}.btn:hover{background:var(--paper);color:#111}.btn.primary{background:var(--paper);color:#111}.btn.primary:hover{background:#fff}
+    .cross{position:fixed;z-index:8;left:50%;top:50%;width:14px;height:14px;transform:translate(-50%,-50%);pointer-events:none;opacity:.7}.cross:before,.cross:after{content:"";position:absolute;background:#fff}.cross:before{left:6.5px;top:1px;width:1px;height:12px}.cross:after{left:1px;top:6.5px;width:12px;height:1px}
+    .load{position:fixed;inset:0;z-index:40;display:grid;place-items:center;background:#090908;transition:opacity .6s ease}.load.hide{opacity:0;pointer-events:none}.loadbox{width:min(510px,calc(100vw - 40px));text-align:center}.loadbox h2{font:400 clamp(37px,7vw,72px)/.93 Georgia,serif;letter-spacing:-.05em;margin:0}.loadbox p{font-size:11px;color:#918a81;line-height:1.6;margin:16px auto 0;max-width:420px}.bar{height:1px;background:#2c2b28;margin-top:24px;overflow:hidden}.bar i{display:block;height:100%;width:18%;background:#efe9df;animation:load 1.45s ease-in-out infinite}@keyframes load{0%{transform:translateX(-110%)}100%{transform:translateX(650%)}}
+    .error{position:fixed;z-index:50;left:50%;top:50%;transform:translate(-50%,-50%);width:min(560px,calc(100vw - 38px));padding:20px;background:#171310;border:1px solid rgba(255,255,255,.18);display:none}.error.show{display:block}.error h3{font:400 28px Georgia,serif;margin:0 0 8px}.error p{font-size:11px;color:#bdb3a7;line-height:1.6;margin:0}
+    .mobile{display:none;position:fixed;inset:auto 16px 16px 16px;z-index:20;justify-content:space-between;align-items:end;pointer-events:none}.pad{pointer-events:auto;width:116px;height:116px;border-radius:50%;border:1px solid rgba(255,255,255,.18);background:rgba(0,0,0,.32);position:relative;touch-action:none}.nub{width:44px;height:44px;border-radius:50%;background:rgba(239,233,223,.82);position:absolute;left:36px;top:36px}.look{pointer-events:auto;width:116px;height:116px;border-radius:50%;border:1px solid rgba(255,255,255,.18);background:rgba(0,0,0,.24);display:grid;place-items:center;color:#c9c1b7;font:600 9px ui-monospace,monospace;letter-spacing:.11em;text-transform:uppercase;touch-action:none}
+    @media(max-width:800px){.hero{top:74px;bottom:auto}.hero p{display:none}.controls{display:none}.mobile{display:flex}.cross{display:none}.top{padding:16px}.hero{left:16px;width:calc(100vw - 32px)}.hero h1{font-size:48px}.brand small{max-width:220px}.status{font-size:8px}}
+  </style>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+      "@sparkjsdev/spark": "https://sparkjs.dev/releases/spark/2.2.0/spark.module.js"
+    }
+  }
+  </script>
+</head>
+<body>
+  <canvas id="scene"></canvas>
+  <div class="veil"></div><div class="grain"></div><div class="cross"></div>
+
+  <header class="top">
+    <div class="brand">Spatial Property / POC<small>Gaussian splat + architectural collision shell</small></div>
+    <div class="status"><span class="dot"></span><span id="statusText">Loading splat</span></div>
+  </header>
+
+  <section class="hero">
+    <div class="eyebrow">Browser-native real-time walkthrough</div>
+    <h1>Walk the photograph.</h1>
+    <p>This is the renderer proof-of-concept for the Zillow-to-spatial pipeline: a true Gaussian-splat scene inside Three.js with a separate invisible movement envelope. Replace the demo splat with a reconstruction from authorised listing media.</p>
+  </section>
+
+  <aside class="controls">
+    <div class="panel"><b>Explore</b><p>Click the scene, then use W A S D to move and the mouse to look. Esc releases the pointer.</p></div>
+    <div class="row"><button class="btn primary" id="enter">Enter scene</button><button class="btn" id="reset">Reset</button></div>
+  </aside>
+
+  <div class="mobile">
+    <div class="pad" id="movePad"><div class="nub" id="moveNub"></div></div>
+    <div class="look" id="lookPad">Drag<br>to look</div>
+  </div>
+
+  <div class="load" id="loader"><div class="loadbox"><h2>Building the spatial scene.</h2><p>Loading a Gaussian-splat interior into the browser renderer. The property pipeline will feed this same viewer with reconstructed listing media.</p><div class="bar"><i></i></div></div></div>
+  <div class="error" id="error"><h3>The splat did not load.</h3><p>The UI and mesh shell are intact, but the remote demo asset or WebGL renderer could not initialise. Reload or try a WebGL2-capable browser.</p></div>
+
+<script type="module">
+import * as THREE from 'three';
+import { SparkRenderer, SplatMesh } from '@sparkjsdev/spark';
+
+const canvas = document.getElementById('scene');
+const loader = document.getElementById('loader');
+const errorBox = document.getElementById('error');
+const statusText = document.getElementById('statusText');
+
+const params = new URLSearchParams(location.search);
+const SPLAT_URL = params.get('splat') || 'https://sparkjs.dev/assets/splats/fireplace.spz';
+
+let renderer, scene, camera, rig, spark, splat;
+let yaw = 0, pitch = 0, last = performance.now();
+const keys = new Set();
+const velocity = new THREE.Vector3();
+const tmp = new THREE.Vector3();
+const start = new THREE.Vector3(0, 0.35, -2.5);
+const bounds = { minX:-3.4, maxX:3.4, minZ:-5.8, maxZ:2.8 };
+
+function init(){
+  renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:false, powerPreference:'high-performance'});
+  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.7));
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.05;
+
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x090807);
+  camera = new THREE.PerspectiveCamera(67, 1, 0.02, 200);
+  camera.position.set(0,0,0);
+  rig = new THREE.Group();
+  rig.position.copy(start);
+  rig.add(camera);
+  scene.add(rig);
+
+  spark = new SparkRenderer({ renderer });
+  scene.add(spark);
+
+  const debug = params.get('debug') === '1';
+  const floor = new THREE.Mesh(
+    new THREE.PlaneGeometry(6.8, 8.6),
+    new THREE.MeshStandardMaterial({color:0x28231f, roughness:.86, metalness:0, transparent:!debug, opacity:debug?.32:0})
+  );
+  floor.rotation.x = -Math.PI/2;
+  floor.position.set(0,-1.25,-1.5);
+  scene.add(floor);
+
+  const light = new THREE.HemisphereLight(0xfff5e8,0x211a16,1.25);
+  scene.add(light);
+
+  splat = new SplatMesh({ url: SPLAT_URL });
+  splat.quaternion.set(1,0,0,0);
+  splat.position.set(0,-1,-10);
+  splat.scale.setScalar(1);
+  scene.add(splat);
+
+  resize();
+  addEventListener('resize', resize, {passive:true});
+  setTimeout(()=>{loader.classList.add('hide');statusText.textContent='Spatial scene live';}, 2300);
+  renderer.setAnimationLoop(frame);
+}
+
+function resize(){
+  const w=innerWidth,h=innerHeight;
+  renderer.setSize(w,h,false);
+  camera.aspect=w/h;
+  camera.updateProjectionMatrix();
+}
+
+function reset(){
+  rig.position.copy(start); yaw=0; pitch=0; rig.rotation.y=0; camera.rotation.x=0;
+}
+
+function clampPosition(){
+  rig.position.x = THREE.MathUtils.clamp(rig.position.x,bounds.minX,bounds.maxX);
+  rig.position.z = THREE.MathUtils.clamp(rig.position.z,bounds.minZ,bounds.maxZ);
+  rig.position.y = start.y;
+}
+
+function move(dt){
+  let x=0,z=0;
+  if(keys.has('KeyW')) z-=1;
+  if(keys.has('KeyS')) z+=1;
+  if(keys.has('KeyA')) x-=1;
+  if(keys.has('KeyD')) x+=1;
+  x += mobileMove.x;
+  z += mobileMove.y;
+  tmp.set(x,0,z);
+  if(tmp.lengthSq()>1) tmp.normalize();
+  tmp.applyAxisAngle(new THREE.Vector3(0,1,0),yaw);
+  const speed=(keys.has('ShiftLeft')?2.7:1.75)*dt;
+  velocity.lerp(tmp.multiplyScalar(speed/Math.max(dt,.001)),.16);
+  rig.position.addScaledVector(velocity,dt);
+  clampPosition();
+}
+
+function frame(time){
+  const dt=Math.min((time-last)/1000,.045); last=time;
+  move(dt);
+  rig.rotation.y=yaw;
+  camera.rotation.x=pitch;
+  renderer.render(scene,camera);
+}
+
+document.addEventListener('keydown',e=>keys.add(e.code));
+document.addEventListener('keyup',e=>keys.delete(e.code));
+document.addEventListener('mousemove',e=>{
+  if(document.pointerLockElement!==canvas) return;
+  yaw -= e.movementX*.00215;
+  pitch = THREE.MathUtils.clamp(pitch-e.movementY*.00185,-1.25,1.25);
+});
+canvas.addEventListener('click',()=>{ if(innerWidth>800) canvas.requestPointerLock?.(); });
+document.getElementById('enter').onclick=()=>canvas.requestPointerLock?.();
+document.getElementById('reset').onclick=reset;
+
+document.addEventListener('pointerlockchange',()=>{
+  statusText.textContent = document.pointerLockElement===canvas ? 'Walk mode active' : 'Spatial scene live';
+});
+
+const mobileMove={x:0,y:0};
+const movePad=document.getElementById('movePad'), moveNub=document.getElementById('moveNub');
+let moveTouch=null;
+function movePoint(e){
+  const r=movePad.getBoundingClientRect(); const t=[...e.touches].find(t=>t.identifier===moveTouch); if(!t)return;
+  let x=t.clientX-(r.left+r.width/2), y=t.clientY-(r.top+r.height/2); const m=Math.hypot(x,y), max=37;
+  if(m>max){x=x/m*max;y=y/m*max}
+  moveNub.style.transform=`translate(${x}px,${y}px)`; mobileMove.x=x/max; mobileMove.y=y/max;
+}
+movePad.addEventListener('touchstart',e=>{moveTouch=e.changedTouches[0].identifier;movePoint(e)},{passive:false});
+movePad.addEventListener('touchmove',e=>{e.preventDefault();movePoint(e)},{passive:false});
+movePad.addEventListener('touchend',e=>{if([...e.changedTouches].some(t=>t.identifier===moveTouch)){moveTouch=null;mobileMove.x=mobileMove.y=0;moveNub.style.transform=''}});
+
+const lookPad=document.getElementById('lookPad'); let lookTouch=null,lookX=0,lookY=0;
+lookPad.addEventListener('touchstart',e=>{const t=e.changedTouches[0];lookTouch=t.identifier;lookX=t.clientX;lookY=t.clientY},{passive:false});
+lookPad.addEventListener('touchmove',e=>{e.preventDefault();const t=[...e.touches].find(t=>t.identifier===lookTouch);if(!t)return;const dx=t.clientX-lookX,dy=t.clientY-lookY;lookX=t.clientX;lookY=t.clientY;yaw-=dx*.007;pitch=THREE.MathUtils.clamp(pitch-dy*.005,-1.2,1.2)},{passive:false});
+lookPad.addEventListener('touchend',e=>{if([...e.changedTouches].some(t=>t.identifier===lookTouch))lookTouch=null});
+
+try{init()}catch(err){console.error(err);loader.classList.add('hide');errorBox.classList.add('show');statusText.textContent='Renderer error'}
+</script>
+</body>
+</html>
